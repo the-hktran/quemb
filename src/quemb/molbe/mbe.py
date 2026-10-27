@@ -494,6 +494,8 @@ class BE:
         return_lo=False,
         return_RDM2=True,
         print_energy=False,
+        C=None,
+        Fobjs=None
     ):
         """Compute the one- and two-particle reduced density matrices (RDM1 and RDM2).
 
@@ -532,7 +534,15 @@ class BE:
             (if return_ao is False and return_RDM2 is True).
         """
         # Copy the molecular orbital coefficients
-        C_mo = self.C.copy()
+        if C is None:
+            C_mo = self.C.copy()
+        else:
+            C_mo = C.copy()
+        if Fobjs is None:
+            Fobjs = self.Fobjs
+        else:
+            Fobjs = Fobjs
+
         nao = C_mo.shape[0]
 
         # Initialize density matrices for atomic orbitals (AO)
@@ -541,7 +551,7 @@ class BE:
         if not only_rdm1:
             rdm2AO = zeros((nao, nao, nao, nao))
 
-        for fobjs in self.Fobjs:
+        for fobjs in Fobjs:
             if not only_rdm1:
                 rdm2 = fobjs.rdm2__.copy()
             if return_RDM2:

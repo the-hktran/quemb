@@ -403,6 +403,37 @@ class UBE(BE):  # 🍠
             )
         )
 
+    def urdm1_fullbasis(
+            self,
+            return_ao=True,
+            only_rdm1=False,
+            only_rdm2=False,
+            return_lo=False,
+            return_RDM2=True,
+            print_energy=False
+    ):
+        res_a = self.rdm1_fullbasis(
+            return_ao=return_ao,
+            only_rdm1=only_rdm1,
+            only_rdm2=only_rdm2,
+            return_lo=return_lo,
+            return_RDM2=return_RDM2,
+            print_energy=print_energy,
+            C=self.C_a,
+            Fobjs=self.Fobjs_a
+            )
+        res_b = self.rdm1_fullbasis(
+            return_ao=return_ao,
+            only_rdm1=only_rdm1,
+            only_rdm2=only_rdm2,
+            return_lo=return_lo,
+            return_RDM2=return_RDM2,
+            print_energy=print_energy,
+            C=self.C_b,
+            Fobjs=self.Fobjs_b
+        )
+        return res_a, res_b
+
 
 def initialize_pot(n_frag, relAO_per_edge):
     pot_ = []
