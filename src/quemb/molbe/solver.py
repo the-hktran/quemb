@@ -642,6 +642,8 @@ def be_func_u(
         if eeval:
             fobj_a.rdm2__ = rdm2s[0].copy()
             fobj_b.rdm2__ = rdm2s[1].copy()
+            fobj_a.rdm2ab__ = rdm2s[2].copy()
+            fobj_b.rdm2ab__ = rdm2s[2].copy()
 
             if frozen:
                 h1_ab = [

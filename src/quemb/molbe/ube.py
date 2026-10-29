@@ -18,7 +18,7 @@ from pathlib import Path
 from warnings import warn
 
 import h5py
-from numpy import array, einsum, zeros, zeros_like
+from numpy import array, einsum, zeros, zeros_like, diag_indices
 from numpy.linalg import multi_dot
 from pyscf import ao2mo
 from pyscf import lib as pyscf_lib
@@ -508,6 +508,126 @@ class UBE(BE):  # 🍠
 
         return rdm1a_AO, rdm1b_AO
 
+    def urdm2_fullbasis(self):
+        # 1. Get assembled 1-RDMs first (needed for global non-cumulant reconstruction)
+        rdm1a_AO, rdm1b_AO = self.urdm1_fullbasis()
+
+        nao = self.S.shape[0]
+        rdm2aa_AO = zeros((nao, nao, nao, nao))
+        rdm2ab_AO = zeros((nao, nao, nao, nao))
+        rdm2bb_AO = zeros((nao, nao, nao, nao))
+
+        for fobj_a, fobj_b in zip(self.Fobjs_a, self.Fobjs_b):
+            cind = [
+                fobj_a.AO_in_frag[i]
+                for i in fobj_a.weight_and_relAO_per_center[1]
+            ]
+
+            Wa = self.W[0] if self.frozen_core else self.W
+            Wb = self.W[1] if self.frozen_core else self.W
+            Pc_a = (
+                fobj_a.TA.T
+                @ self.S
+                @ Wa[:, cind]
+                @ Wa[:, cind].T
+                @ self.S
+                @ fobj_a.TA
+            )
+            Pc_b = (
+                fobj_b.TA.T
+                @ self.S
+                @ Wb[:, cind]
+                @ Wb[:, cind].T
+                @ self.S
+                @ fobj_b.TA
+            )
+
+            mca = fobj_a.mo_coeffs
+            mcb = fobj_b.mo_coeffs
+
+            # Extract local cumulants using difference density (occupations = 1.0)
+            dra = fobj_a.rdm1__.copy()
+            drb = fobj_b.rdm1__.copy()
+            dra[diag_indices(fobj_a.nsocc)] -= 1.0
+            drb[diag_indices(fobj_b.nsocc)] -= 1.0
+
+            # PySCF 2-RDM convention: ijkl -> <p_i^\dagger r_k^\dagger s_l q_j>
+            nc_aa = einsum("ij,kl->ijkl", dra, dra) - einsum(
+                "il,kj->ijkl", dra, dra
+            )
+            nc_bb = einsum("ij,kl->ijkl", drb, drb) - einsum(
+                "il,kj->ijkl", drb, drb
+            )
+            nc_ab = einsum("ij,kl->ijkl", dra, drb)
+
+            c_aa = fobj_a.rdm2__ - nc_aa
+            c_bb = fobj_b.rdm2__ - nc_bb
+            c_ab = fobj_a.rdm2ab__ - nc_ab
+
+            # Transform cumulant to local embedding-orbital basis
+            c_aa_eo = einsum(
+                "ijkl,pi,qj,rk,sl->pqrs", c_aa, mca, mca, mca, mca, optimize=True
+            )
+            c_bb_eo = einsum(
+                "ijkl,pi,qj,rk,sl->pqrs", c_bb, mcb, mcb, mcb, mcb, optimize=True
+            )
+            c_ab_eo = einsum(
+                "ijkl,pi,qj,rk,sl->pqrs", c_ab, mca, mca, mcb, mcb, optimize=True
+            )
+
+            # Project index 0 onto center
+            # Accumulate into full AO space
+            rdm2aa_AO += einsum(
+                "xi,ijkl,px,qj,rk,sl->pqrs",
+                Pc_a,
+                c_aa_eo,
+                fobj_a.TA,
+                fobj_a.TA,
+                fobj_a.TA,
+                fobj_a.TA,
+                optimize=True,
+            )
+
+            rdm2bb_AO += einsum(
+                "xi,ijkl,px,qj,rk,sl->pqrs",
+                Pc_b,
+                c_bb_eo,
+                fobj_b.TA,
+                fobj_b.TA,
+                fobj_b.TA,
+                fobj_b.TA,
+                optimize=True,
+            )
+
+            rdm2ab_AO += einsum(
+                "xi,ijkl,px,qj,rk,sl->pqrs",
+                Pc_a,
+                c_ab_eo,
+                fobj_a.TA,
+                fobj_a.TA,
+                fobj_b.TA,
+                fobj_b.TA,
+                optimize=True,
+            )
+
+            # 2. Symmetrize accumulated cumulants
+        rdm2aa_AO = (rdm2aa_AO + rdm2aa_AO.transpose(1, 0, 3, 2)) / 2.0
+        rdm2bb_AO = (rdm2bb_AO + rdm2bb_AO.transpose(1, 0, 3, 2)) / 2.0
+
+        # 3. Add back global non-cumulant piece from assembled 1-RDMs
+        nc_aa_AO = einsum("ij,kl->ijkl", rdm1a_AO, rdm1a_AO) - einsum(
+            "il,kj->ijkl", rdm1a_AO, rdm1a_AO
+        )
+        nc_bb_AO = einsum("ij,kl->ijkl", rdm1b_AO, rdm1b_AO) - einsum(
+            "il,kj->ijkl", rdm1b_AO, rdm1b_AO
+        )
+        nc_ab_AO = einsum("ij,kl->ijkl", rdm1a_AO, rdm1b_AO)
+
+        rdm2aa_AO += nc_aa_AO
+        rdm2bb_AO += nc_bb_AO
+        rdm2ab_AO += nc_ab_AO
+
+        return rdm2aa_AO, rdm2ab_AO, rdm2bb_AO
 
 def _opposite_spin_eri_supported() -> bool:
     libao2mo = pyscf_lib.load_library("libao2mo")
