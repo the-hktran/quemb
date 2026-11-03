@@ -20,7 +20,7 @@ from warnings import warn
 import h5py
 from numpy import array, einsum, zeros, zeros_like, diag_indices
 from numpy.linalg import multi_dot
-from pyscf import ao2mo
+from pyscf import ao2mo, grad
 from pyscf import lib as pyscf_lib
 from pyscf.scf.uhf import UHF
 from threadpoolctl import threadpool_limits
@@ -628,6 +628,82 @@ class UBE(BE):  # 🍠
         rdm2ab_AO += nc_ab_AO
 
         return rdm2aa_AO, rdm2ab_AO, rdm2bb_AO
+
+    def get_be_grad(self, rdm1a_AO = None, rdm1b_AO = None, rdm2aa_AO = None, rdm2ab_AO = None, rdm2bb_AO = None):
+        """Compute atomic energy gradients (dE/dR) for unrestricted calculations (UBE-DM).
+
+        Parameters
+        ----------
+        mol : pyscf.gto.Mole
+            Molecule object.
+        rdm1a_AO, rdm1b_AO : numpy.ndarray (nao, nao)
+            Alpha and beta 1-RDMs in the AO basis from urdm1_fullbasis().
+        rdm2aa_AO, rdm2ab_AO, rdm2bb_AO : numpy.ndarray (nao, nao, nao, nao)
+            Alpha-alpha, alpha-beta, and beta-beta 2-RDMs from urdm2_fullbasis().
+        mf : pyscf.scf.uhf.UHF, optional
+            Mean-field UHF object providing F_alpha and F_beta.
+
+        Returns
+        -------
+        gradient: numpy.ndarray (natoms, 3)
+            Atomic gradient in a.u./bohr: dE/dR = -F
+        """
+        
+        mol = self.mf.mol
+        mf = self.mf
+
+        if rdm1a_AO is None or rdm1b_AO is None or rdm2aa_AO is None or rdm2ab_AO is None or rdm2bb_AO is None:
+            rdm1a_AO, rdm1b_AO = self.urdm1_fullbasis()
+            rdm2aa_AO, rdm2ab_AO, rdm2bb_AO = self.urdm2_fullbasis()
+
+        natoms = mol.natm
+
+        h1 = mol.intor("int1e_ipkin", comp=3) + mol.intor("int1e_ipnuc", comp=3)
+        s1 = mol.intor("int1e_ipovlp", comp=3)
+
+        # Spin-resolved Fock matrices for energy-weighted density Q
+        F = mf.get_fock()
+        Fa, Fb = F[0], F[1]
+        Qa = rdm1a_AO @ Fa @ rdm1a_AO
+        Qb = rdm1b_AO @ Fb @ rdm1b_AO
+        Q_tot = Qa + Qb
+
+        # Total charge density (1-RDM) and total spatial 2-RDM
+        rdm1_tot = rdm1a_AO + rdm1b_AO
+        rdm2_tot = rdm2aa_AO + rdm2bb_AO + rdm2ab_AO + rdm2ab_AO.transpose(2, 3, 0, 1)
+
+        aoslices = mol.aoslice_by_atom()
+        de = zeros((natoms, 3))
+
+        # 1. Nuclear gradient
+        de_nuc = grad.rhf.grad_nuc(mol)
+
+        for ia in range(natoms):
+            shl0, shl1, p0, p1 = aoslices[ia]
+
+            # --- 1-Electron contribution ---
+            # hcore term: Tr(gamma * dh/dR)
+            h_atom = h1[:, p0:p1, :]
+            de_h = -2.0 * einsum("xpi,ip->x", h_atom, rdm1_tot[:, p0:p1], optimize=True)
+
+            # Overlap term: -Tr(Q * dS/dR)
+            s_atom = s1[:, p0:p1, :]
+            de_s = 2.0 * einsum("xpi,ip->x", s_atom, Q_tot[:, p0:p1], optimize=True)
+
+            # Hellmann-Feynman nuclear attraction term:
+            with mol.with_rinv_at_nucleus(ia):
+              vrinv = -mol.intor("int1e_iprinv", comp=3)
+              Z_A = mol.atom_charge(ia)
+              de_h_feynman = 2.0 * Z_A * einsum("xij,ji->x", vrinv, rdm1_tot, optimize=True)
+
+            # --- 2-Electron ERI derivative term ---
+            eri_ip1 = mol.intor("int2e_ip1", comp=3, shls_slice=(shl0, shl1, 0, mol.nbas, 0, mol.nbas, 0, mol.nbas))
+            # Factor of 2.0 for 2-electron skeleton derivative in PySCF convention
+            de_2e = -2.0 * einsum("xpqrs,pqrs->x", eri_ip1, rdm2_tot[p0:p1, :, :, :], optimize=True)
+
+            de[ia] = de_h + de_s + de_h_feynman + de_2e + de_nuc[ia]
+
+        return de
 
 def _opposite_spin_eri_supported() -> bool:
     libao2mo = pyscf_lib.load_library("libao2mo")
