@@ -27,7 +27,7 @@ from threadpoolctl import threadpool_limits
 
 from quemb.molbe.be_parallel import be_func_parallel_u
 from quemb.molbe.fragment import FragPart
-from quemb.molbe.lo import LocMethods
+from quemb.molbe.lo import LocMethods, IAO_LocMethods
 from quemb.molbe.mbe import BE, IntTransforms
 from quemb.molbe.pfrag import Frags
 from quemb.molbe.solver import be_func_u
@@ -44,6 +44,7 @@ class UBE(BE):  # 🍠
         scratch_dir: WorkDir | None = None,
         eri_file: PathLike = "eri_file.h5",
         lo_method: LocMethods = "lowdin",
+        iao_loc_method: IAO_LocMethods = "lowdin", 
         pop_method: str | None = None,
         compute_hf: bool = True,
         thr_bath: float = 1.0e-10,
@@ -73,6 +74,12 @@ class UBE(BE):  # 🍠
             "PM" (Pipek-Mezey", and
             "ER" (Edmiston-Rudenberg).
             By default "lowdin"
+        iao_loc_method :
+            Method for IAO localization. Supports
+            "lowdin" (Löwdin or symmetric orthogonalization),
+            "boys" (Foster-Boys),
+            "PM" (Pipek-Mezey", and
+            "ER" (Edmiston-Rudenberg).
         pop_method :
             Method for calculating orbital population, by default 'meta-lowdin'
             See pyscf.lo for more details and options
@@ -198,6 +205,7 @@ class UBE(BE):  # 🍠
             self.localize(
                 lo_method,
                 fobj=fobj,
+                iao_loc_method=iao_loc_method,
                 iao_valence_only=fobj.iao_valence_only,
                 pop_method=pop_method,
             )

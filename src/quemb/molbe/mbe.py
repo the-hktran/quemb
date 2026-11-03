@@ -1486,128 +1486,304 @@ class BE:
             # IAO valence basis: (v): minimal-like basis we try to resemble
             assert fobj.iao_valence_basis is not None
 
-            # Occupied mo_coeff (with core)
-            Co = self.C[:, : self.Nocc]
+            if self.unrestricted:
+                # Occupied mo_coeff (with core)
+                Co_a = self.C_a[:, : self.Nocc[0]]
+                Co_b = self.C_b[:, : self.Nocc[1]]
 
-            # Get necessary overlaps, second arg is IAO valence basis
-            S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
+                # Get necessary overlaps, second arg is IAO valence basis
+                S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
 
-            # How do we describe the rest of the space?
-            # If iao_valence_only=False, we use PAOs:
-            if not iao_valence_only:
-                Ciao = get_iao(
-                    Co,
-                    S_vw,
-                    self.S,
-                    S_vv,
-                    self.fobj.mol,
-                    fobj.iao_valence_basis,
-                    iao_loc_method,
-                )
+                # How do we describe the rest of the space?
+                # If iao_valence_only=False, we use PAOs:
+                if not iao_valence_only:
+                    Ciao_a = get_iao(
+                        Co_a,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+                    Ciao_b = get_iao(
+                        Co_b,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
 
-                Cpao = get_pao(
-                    Ciao,
-                    self.S,
-                    S_vw,
-                    self.fobj.mol,
-                    fobj.iao_valence_basis,
-                    iao_loc_method,
-                )
+                    Cpao_a = get_pao(
+                        Ciao_a,
+                        self.S,
+                        S_vw,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+                    Cpao_b = get_pao(
+                        Ciao_b,
+                        self.S,
+                        S_vw,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
 
-                if iao_loc_method != "lowdin":
-                    # Localize IAOs and PAOs
-                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
-                    Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
-            else:
-                Ciao = get_iao(
-                    Co,
-                    S_vw,
-                    self.S,
-                    S_vv,
-                    self.fobj.mol,
-                    fobj.iao_valence_basis,
-                    iao_loc_method,
-                )
+                    if iao_loc_method != "lowdin":
+                        # Localize IAOs and PAOs
+                        Ciao_a = get_loc(self.fobj.mol, Ciao_a, iao_loc_method)
+                        Ciao_b = get_loc(self.fobj.mol, Ciao_b, iao_loc_method)
+                        Cpao_a = get_loc(self.fobj.mol, Cpao_a, iao_loc_method)
+                        Cpao_b = get_loc(self.fobj.mol, Cpao_b, iao_loc_method)
+                else:
+                    Ciao_a = get_iao(
+                        Co_a,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+                    Ciao_b = get_iao(
+                        Co_b,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
 
-                if iao_loc_method != "lowdin":
-                    Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+                    if iao_loc_method != "lowdin":
+                        Ciao_a = get_loc(self.fobj.mol, Ciao_a, iao_loc_method)
+                        Ciao_b = get_loc(self.fobj.mol, Ciao_b, iao_loc_method)
 
-            # Rearrange by atom
-            aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
-            Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
+                # Rearrange by atom
+                aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
+                Ciao_a, iaoind_by_atom_a = reorder_by_atom_(Ciao_a, aoind_by_atom, self.S)
+                Ciao_b, iaoind_by_atom_b = reorder_by_atom_(Ciao_b, aoind_by_atom, self.S)
 
-            if not iao_valence_only:
-                Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
+                if not iao_valence_only:
+                    Cpao_a, paoind_by_atom_a = reorder_by_atom_(Cpao_a, aoind_by_atom, self.S)
+                    Cpao_b, paoind_by_atom_b = reorder_by_atom_(Cpao_b, aoind_by_atom, self.S)
 
-            if self.frozen_core:
-                # Remove core MOs
-                Cc = self.C[:, : self.ncore]  # Assumes core are first
-                Ciao = remove_core_mo(Ciao, Cc, self.S)
+                if self.frozen_core:
+                    # Remove core MOs
+                    Cc_a = self.C_a[:, : self.ncore]  # Assumes core are first
+                    Cc_b = self.C_b[:, : self.ncore]  # Assumes core are first
+                    Ciao_a = remove_core_mo(Ciao_a, Cc_a, self.S)
+                    Ciao_b = remove_core_mo(Ciao_b, Cc_b, self.S)
 
-            shift = 0
-            ncore = 0
-            if not iao_valence_only:
-                Wstack = zeros((Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1]))
-            else:
-                Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
+                Ciao = [Ciao_a, Ciao_b]
+                Cpao = [Cpao_a, Cpao_b]
+                iaoind_by_atom = [iaoind_by_atom_a, iaoind_by_atom_b]
+                paoind_by_atom = [paoind_by_atom_a, paoind_by_atom_b]
+                shift = [0, 0]
+                ncore = 0
+                if not iao_valence_only:
+                    Wstack = [zeros((Ciao[s].shape[0], Ciao[s].shape[1] + Cpao[s].shape[1])) for s in [0, 1]]
+                else:
+                    Wstack = [zeros((Ciao[s].shape[0], Ciao[s].shape[1])) for s in [0, 1]]
 
-            if self.frozen_core:
-                for ix in range(self.fobj.mol.natm):
-                    nc = ncore_(self.fobj.mol.atom_charge(ix))
-                    ncore += nc
-                    niao = len(iaoind_by_atom[ix])
-                    iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
-                    Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
-                    shift += niao - nc
-                    if not iao_valence_only:
-                        npao = len(paoind_by_atom[ix])
-                        Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
-                        shift += npao
-            else:
-                if not hstack:
+                if self.frozen_core:
                     for ix in range(self.fobj.mol.natm):
+                        nc = ncore_(self.fobj.mol.atom_charge(ix))
+                        ncore += nc
+                        niao = [len(iaoind_by_atom[s][ix]) for s in [0, 1]]
+                        iaoind_ix = [[i_ - ncore for i_ in iaoind_by_atom[s][ix][nc:]] for s in [0, 1]]
+                        for s in range(2):
+                            Wstack[s][:, shift[s] : shift[s] + niao[s] - nc] = Ciao[s][:, iaoind_ix[s]]
+                            shift[s] += niao[s] - nc
+                        if not iao_valence_only:
+                            npao = [len(paoind_by_atom[s][ix]) for s in [0, 1]]
+                            for s in range(2):
+                                Wstack[s][:, shift[s] : shift[s] + npao[s]] = Cpao[s][:, paoind_by_atom[s][ix]]
+                                shift[s] += npao[s]
+                else:
+                    if not hstack:
+                        for ix in range(self.fobj.mol.natm):
+                            niao = [len(iaoind_by_atom[s][ix]) for s in [0, 1]]
+                            for s in range(2):
+                                Wstack[s][:, shift[s] : shift[s] + niao[s]] = Ciao[s][:, iaoind_by_atom[s][ix]]
+                                shift[s] += niao[s]
+                            if not iao_valence_only:
+                                npao = [len(paoind_by_atom[s][ix]) for s in [0, 1]]
+                                for s in range(2):
+                                    Wstack[s][:, shift[s] : shift[s] + npao[s]] = Cpao[s][:, paoind_by_atom[s][ix]]
+                                    shift[s] += npao[s]
+                    else:
+                        Wstack = [np.hstack((Ciao[s], Cpao[s])) for s in [0, 1]]
+                if save:
+                    self.W = Wstack
+                    assert allclose(self.W[0].T @ self.S @ self.W[0], eye(self.W[0].shape[1]))
+                    assert allclose(self.W[1].T @ self.S @ self.W[1], eye(self.W[1].shape[1]))
+                else:
+                    assert allclose(Wstack[0].T @ self.S @ Wstack[0], eye(Wstack[0].shape[1]))
+                    assert allclose(Wstack[1].T @ self.S @ Wstack[1], eye(Wstack[1].shape[1]))
+                    return Wstack
+
+                nmo_a = self.C_a.shape[1] - self.ncore
+                nmo_b = self.C_b.shape[1] - self.ncore
+                nlo = [self.W[s].shape[1] for s in [0, 1]]
+                nmo = [nmo_a, nmo_b]
+                C = [self.C_a, self.C_b]
+                self.lmo_coeff = [None, None]
+
+                if not iao_valence_only:
+                    for s in [0, 1]:
+                        if nmo[s] > nlo[s]:
+                            Co_nocore = C[s][:, self.ncore : self.Nocc[s]]
+                            Cv = C[s][:, self.Nocc[s] :]
+                            # Ensure that the LOs span the occupied space
+                            assert allclose(
+                                np.sum((self.W[s].T @ self.S @ Co_nocore) ** 2.0),
+                                self.Nocc[s] - self.ncore,
+                            )
+                            # Find virtual orbitals that lie in the span of LOs
+                            u, l, vt = svd(self.W[s].T @ self.S @ Cv, full_matrices=False)
+                            unused(u)
+                            nvlo = nlo[s] - self.Nocc[s] - self.ncore
+                            assert allclose(np.sum(l[:nvlo]), nvlo)
+                            C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                            self.lmo_coeff[s] = self.W[s].T @ self.S @ C_
+                        else:
+                            self.lmo_coeff[s] = self.W[s].T @ self.S @ C[s][:, self.ncore :]
+                else:
+                    for s in [0, 1]:
+                        self.lmo_coeff[s] = self.W[s].T @ self.S @ C[s][:, self.ncore :]
+
+                self.lmo_coeff_a = self.lmo_coeff[0]
+                self.lmo_coeff_b = self.lmo_coeff[1]
+                return None
+
+            else:
+                # Occupied mo_coeff (with core)
+                Co = [C[s][:, : self.Nocc[s]] for s in [0, 1]]
+
+                # Get necessary overlaps, second arg is IAO valence basis
+                S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)
+
+                # How do we describe the rest of the space?
+                # If iao_valence_only=False, we use PAOs:
+                if not iao_valence_only:
+                    Ciao = get_iao(
+                        Co,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+
+                    Cpao = get_pao(
+                        Ciao,
+                        self.S,
+                        S_vw,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+
+                    if iao_loc_method != "lowdin":
+                        # Localize IAOs and PAOs
+                        Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+                        Cpao = get_loc(self.fobj.mol, Cpao, iao_loc_method)
+                else:
+                    Ciao = get_iao(
+                        Co,
+                        S_vw,
+                        self.S,
+                        S_vv,
+                        self.fobj.mol,
+                        fobj.iao_valence_basis,
+                        iao_loc_method,
+                    )
+
+                    if iao_loc_method != "lowdin":
+                        Ciao = get_loc(self.fobj.mol, Ciao, iao_loc_method)
+
+                # Rearrange by atom
+                aoind_by_atom = get_aoind_by_atom(self.fobj.mol)
+                Ciao, iaoind_by_atom = reorder_by_atom_(Ciao, aoind_by_atom, self.S)
+
+                if not iao_valence_only:
+                    Cpao, paoind_by_atom = reorder_by_atom_(Cpao, aoind_by_atom, self.S)
+
+                if self.frozen_core:
+                    # Remove core MOs
+                    Cc = self.C[:, : self.ncore]  # Assumes core are first
+                    Ciao = remove_core_mo(Ciao, Cc, self.S)
+
+                shift = 0
+                ncore = 0
+                if not iao_valence_only:
+                    Wstack = zeros((Ciao.shape[0], Ciao.shape[1] + Cpao.shape[1]))
+                else:
+                    Wstack = zeros((Ciao.shape[0], Ciao.shape[1]))
+
+                if self.frozen_core:
+                    for ix in range(self.fobj.mol.natm):
+                        nc = ncore_(self.fobj.mol.atom_charge(ix))
+                        ncore += nc
                         niao = len(iaoind_by_atom[ix])
-                        Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
-                        shift += niao
+                        iaoind_ix = [i_ - ncore for i_ in iaoind_by_atom[ix][nc:]]
+                        Wstack[:, shift : shift + niao - nc] = Ciao[:, iaoind_ix]
+                        shift += niao - nc
                         if not iao_valence_only:
                             npao = len(paoind_by_atom[ix])
-                            Wstack[:, shift : shift + npao] = Cpao[
-                                :, paoind_by_atom[ix]
-                            ]
+                            Wstack[:, shift : shift + npao] = Cpao[:, paoind_by_atom[ix]]
                             shift += npao
                 else:
-                    Wstack = np.hstack((Ciao, Cpao))
-            if save:
-                self.W = Wstack
-                assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
-            else:
-                assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
-                return Wstack
+                    if not hstack:
+                        for ix in range(self.fobj.mol.natm):
+                            niao = len(iaoind_by_atom[ix])
+                            Wstack[:, shift : shift + niao] = Ciao[:, iaoind_by_atom[ix]]
+                            shift += niao
+                            if not iao_valence_only:
+                                npao = len(paoind_by_atom[ix])
+                                Wstack[:, shift : shift + npao] = Cpao[
+                                    :, paoind_by_atom[ix]
+                                ]
+                                shift += npao
+                    else:
+                        Wstack = np.hstack((Ciao, Cpao))
+                if save:
+                    self.W = Wstack
+                    assert allclose(self.W.T @ self.S @ self.W, eye(self.W.shape[1]))
+                else:
+                    assert allclose(Wstack.T @ self.S @ Wstack, eye(Wstack.shape[1]))
+                    return Wstack
 
-            nmo = self.C.shape[1] - self.ncore
-            nlo = self.W.shape[1]
+                nmo = self.C.shape[1] - self.ncore
+                nlo = self.W.shape[1]
 
-            if not iao_valence_only:
-                if nmo > nlo:
-                    Co_nocore = self.C[:, self.ncore : self.Nocc]
-                    Cv = self.C[:, self.Nocc :]
-                    # Ensure that the LOs span the occupied space
-                    assert allclose(
-                        np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
-                        self.Nocc - self.ncore,
-                    )
-                    # Find virtual orbitals that lie in the span of LOs
-                    u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
-                    unused(u)
-                    nvlo = nlo - self.Nocc - self.ncore
-                    assert allclose(np.sum(l[:nvlo]), nvlo)
-                    C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
-                    self.lmo_coeff = self.W.T @ self.S @ C_
+                if not iao_valence_only:
+                    if nmo > nlo:
+                        Co_nocore = self.C[:, self.ncore : self.Nocc]
+                        Cv = self.C[:, self.Nocc :]
+                        # Ensure that the LOs span the occupied space
+                        assert allclose(
+                            np.sum((self.W.T @ self.S @ Co_nocore) ** 2.0),
+                            self.Nocc - self.ncore,
+                        )
+                        # Find virtual orbitals that lie in the span of LOs
+                        u, l, vt = svd(self.W.T @ self.S @ Cv, full_matrices=False)
+                        unused(u)
+                        nvlo = nlo - self.Nocc - self.ncore
+                        assert allclose(np.sum(l[:nvlo]), nvlo)
+                        C_ = np.hstack([Co_nocore, Cv @ vt[:nvlo].T])
+                        self.lmo_coeff = self.W.T @ self.S @ C_
+                    else:
+                        self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
                 else:
                     self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-            else:
-                self.lmo_coeff = self.W.T @ self.S @ self.C[:, self.ncore :]
-            return None
+                return None
         else:
             raise assert_never(lo_method)
 
