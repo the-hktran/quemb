@@ -1663,7 +1663,7 @@ class BE:
 
             else:
                 # Occupied mo_coeff (with core)
-                Co = [C[s][:, : self.Nocc[s]] for s in [0, 1]]
+                Co = self.C[:, : self.Nocc]
 
                 # Get necessary overlaps, second arg is IAO valence basis
                 S_vw, S_vv = get_xovlp(self.fobj.mol, basis=fobj.iao_valence_basis)

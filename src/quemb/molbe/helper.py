@@ -397,7 +397,6 @@ def get_frag_energy_u(
     list
         List containing the energy contributions: [e1_tmp, e2_tmp, ec_tmp].
     """
-
     # Rotate the RDM1 into the MO basis for both spins
     rdm1s_rot = [mo_coeffs[s] @ rdm1[s] @ mo_coeffs[s].T for s in [0, 1]]
 
@@ -408,17 +407,17 @@ def get_frag_energy_u(
     ]
 
     # Compute the difference between the rotated RDM1 and the HF RDM1
-    delta_rdm1 = [2 * (rdm1s_rot[s] - hf_1rdm[s]) for s in [0, 1]]
+    delta_rdm1 = [rdm1s_rot[s] - hf_1rdm[s] for s in [0, 1]]
 
     if veff0 is None:
         # Compute thte effective potential in the transformed basis
         veff0 = [multi_dot((TA[s].T, hf_veff[s], TA[s])) for s in [0, 1]]
 
     # For frozen care, remove core potential and Hamiltonian components
-    if frozen:
-        for s in [0, 1]:
-            veff0[s] -= gcores[s]
-            h1[s] -= gcores[s]
+    #if frozen:
+    #    for s in [0, 1]:
+    #        veff0[s] -= gcores[s]
+    #        h1[s] -= gcores[s]
 
     # Calculate the one-electron and effective potential energy contributions
     e1 = [

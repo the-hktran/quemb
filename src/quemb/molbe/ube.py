@@ -252,13 +252,13 @@ class UBE(BE):  # 🍠
                 fobj_b.core_veff = None
 
             fobj_a.sd(
-                self.W[0] if self.frozen_core else self.W,
+                self.W[0],
                 self.lmo_coeff_a,
                 self.Nocc[0],
                 thr_bath=self.thr_bath,
             )
             fobj_b.sd(
-                self.W[1] if self.frozen_core else self.W,
+                self.W[1],
                 self.lmo_coeff_b,
                 self.Nocc[1],
                 thr_bath=self.thr_bath,
@@ -271,7 +271,7 @@ class UBE(BE):  # 🍠
                 tot_beta = fobj_b.n_f + fobj_b.n_b
                 if tot_alpha > tot_beta:
                     fobj_b.sd(
-                        self.W[1] if self.frozen_core else self.W,
+                        self.W[1],
                         self.lmo_coeff_b,
                         self.Nocc[1],
                         thr_bath=self.thr_bath,
@@ -279,7 +279,7 @@ class UBE(BE):  # 🍠
                     )
                 elif tot_beta > tot_alpha:
                     fobj_a.sd(
-                        self.W[0] if self.frozen_core else self.W,
+                        self.W[0],
                         self.lmo_coeff_a,
                         self.Nocc[0],
                         thr_bath=self.thr_bath,
@@ -488,8 +488,8 @@ class UBE(BE):  # 🍠
             # pattern) rather than full AO space -- Proj is not a proper
             # idempotent projector once conjugated the other way across the
             # non-orthogonal TA embedding transformation.
-            Wa = self.W[0] if self.frozen_core else self.W
-            Wb = self.W[1] if self.frozen_core else self.W
+            Wa = self.W[0]
+            Wb = self.W[1]
             Pc_a = (
                 fobj_a.TA.T @ self.S @ Wa[:, cind] @ Wa[:, cind].T @ self.S @ fobj_a.TA
             )
