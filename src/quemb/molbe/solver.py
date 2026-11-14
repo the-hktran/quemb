@@ -653,17 +653,6 @@ def be_func_u(
             else:
                 h1_ab = [fobj_a.h1, fobj_b.h1]
 
-            import numpy as np
-            print(np.linalg.norm(fobj_a._mo_coeffs), np.linalg.norm(fobj_b._mo_coeffs))
-            print(fobj_a.nsocc, fobj_b.nsocc)
-            print(fobj_a.n_frag, fobj_b.n_frag)
-            print(fobj_a.nsocc, fobj_b.nsocc)
-            print(fobj_a.weight_and_relAO_per_center, fobj_b.weight_and_relAO_per_center)
-            print(np.linalg.norm(fobj_a.TA), np.linalg.norm(fobj_b.TA))
-            print(np.linalg.norm(h1_ab[0]), np.linalg.norm(h1_ab[1]))
-            print(np.linalg.norm(hf_veff[0]), np.linalg.norm(hf_veff[1]))
-            print(np.linalg.norm(rdm1_tmp[0]), np.linalg.norm(rdm1_tmp[1]))
-            print(np.linalg.norm(rdm2s[0]), np.linalg.norm(rdm2s[1]), np.linalg.norm(rdm2s[2]))
             e_f = get_frag_energy_u(
                 (fobj_a._mo_coeffs, fobj_b._mo_coeffs),
                 (fobj_a.nsocc, fobj_b.nsocc),

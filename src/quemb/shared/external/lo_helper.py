@@ -95,7 +95,7 @@ def get_aoind_by_atom(mol, atomind_by_motif=None):
 
     return aoind_by_atom
 
-
+'''
 def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
     """Reorder the ~LOCALIZED~ Clo orbitals by atom"""
     natom = len(aoind_by_atom)
@@ -115,6 +115,41 @@ def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
         nlo_a = len(loind_a)
         loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))
         loshift += nlo_a
+    if loind_reorder != list(range(nlo)):
+        Clo_new = Clo[:, loind_reorder]
+    else:
+        Clo_new = Clo
+    return Clo_new, loind_by_atom
+'''
+
+def reorder_by_atom_(Clo, aoind_by_atom, S, thr=0.5):
+    """Reorder the ~LOCALIZED~ Clo orbitals by atom"""
+    natom = len(aoind_by_atom)
+    nlo = Clo.shape[1]
+    X = get_symm_mat_pow(S, 0.5)
+
+    Clo_soao = X @ Clo
+
+    # Compute population of each orbital (nlo,) on every atom (natom,)
+    pop_matrix = np.array([
+        np.sum(Clo_soao[aoind_by_atom[ia]] ** 2.0, axis=0)
+        for ia in range(natom)
+    ])  # shape: (natom, nlo)
+
+    # Assign each orbital to the atom with the largest population (guarantees all nlo orbitals are kept)
+    atom_assign = np.argmax(pop_matrix, axis=0)
+
+    loind_reorder = []
+    loind_by_atom = [None] * natom
+    loshift = 0
+    for ia in range(natom):
+        loind_a = where(atom_assign == ia)[0].tolist()
+        loind_reorder += loind_a
+        nlo_a = len(loind_a)
+        loind_by_atom[ia] = list(range(loshift, loshift + nlo_a))
+        loshift += nlo_a
+
+    assert len(loind_reorder) == nlo
     if loind_reorder != list(range(nlo)):
         Clo_new = Clo[:, loind_reorder]
     else:
