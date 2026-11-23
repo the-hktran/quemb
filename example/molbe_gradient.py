@@ -12,9 +12,11 @@ H 2.080000 0.900000 0.000000
 H 2.080000 -0.900000 0.000000
 """
 
+hexene_file = "data/hexene.xyz"
+
 # Build PySCF molecule object
 mol = gto.M()
-mol.atom = ethane_atoms
+mol.atom = hexene_file
 mol.basis = "sto-3g"
 mol.charge = -1
 mol.spin = 1
@@ -28,7 +30,7 @@ mf.kernel()
 nproc = 1
 
 # Initialize fragments without frozen core approximation at BE1 level
-fobj = fragmentate(frag_type="chemgen", n_BE=1, mol=mol, frozen_core=False)
+fobj = fragmentate(frag_type="chemgen", n_BE=2, mol=mol, frozen_core=False)
 # Initialize UBE
 mybe = UBE(mf, fobj)
 
@@ -38,7 +40,7 @@ mybe.oneshot(solver="UCCSD", nproc=nproc)
 rdm1 = mybe.urdm1_fullbasis()
 rdm2 = mybe.urdm2_fullbasis()
 
-mcc = cc.CCSD(mf)
+mcc = cc.CCSD(mf, frozen=False)
 mcc.kernel()
 
 true_rdm1_mo = mcc.make_rdm1()
@@ -66,8 +68,15 @@ print(np.linalg.norm(rdm2[2] - true_rdm2bb), np.linalg.norm(true_rdm2bb))
 # Compare gradients
 mygrad_cc = mcc.Gradients()
 grad_cc = mygrad_cc.kernel()
+grad_cc = mcc.nuc_grad_method().kernel()
 
 grad_be = mybe.get_be_grad()
+
+print("Comparison of Gradients")
+print("CCSD Gradient")
+print(grad_cc)
+print("BE Gradient")
+print(grad_be)
 
 print("Gradient Results")
 print("Norm of CCSD Gradient: ", np.linalg.norm(grad_cc))

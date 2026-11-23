@@ -34,7 +34,8 @@ def remove_core_mo(Clo: Matrix, Ccore: Matrix, S: Matrix, thr: float = 0.5) -> M
     Pcore = Ccore @ Ccore.T @ S
     Clo1 = (eye(n) - Pcore) @ Clo
     pop = diag(Clo1.T @ S @ Clo1)
-    idx_keep = where(pop > thr)[0]
+    #idx_keep = where(pop > thr)[0]
+    idx_keep = np.argsort(pop)[::-1][: nlo - ncore]
     assert len(idx_keep) == nlo - ncore
     return symm_orth(Clo1[:, idx_keep], ovlp=S)
 

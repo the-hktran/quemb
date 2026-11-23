@@ -16,6 +16,7 @@ TODO
 
 from pathlib import Path
 from warnings import warn
+from typing import Final, Literal, TypeAlias
 
 import h5py
 from numpy import array, einsum, zeros, zeros_like, diag_indices
@@ -30,11 +31,11 @@ from quemb.molbe.fragment import FragPart
 from quemb.molbe.lo import LocMethods, IAO_LocMethods
 from quemb.molbe.mbe import BE, IntTransforms
 from quemb.molbe.pfrag import Frags
-from quemb.molbe.solver import be_func_u
+from quemb.molbe.solver import be_func_u, Solvers, UserSolverArgs
 from quemb.shared.helper import unused
 from quemb.shared.manage_scratch import WorkDir
 from quemb.shared.typing import PathLike
-
+from quemb.molbe.opt import BEOPT
 
 class UBE(BE):  # 🍠
     def __init__(

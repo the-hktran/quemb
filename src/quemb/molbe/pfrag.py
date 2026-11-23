@@ -177,6 +177,8 @@ class Frags:
             norb=norb,
         )
         self.TA = lao @ self.TA_lo_eo
+        if self.TA.ndim == 1:
+            self.TA = self.TA[:, np.newaxis]
         self.nao = self.TA.shape[1]
 
     def cons_fock(self, hf_veff, S, dm, eri_=None):
@@ -467,6 +469,8 @@ def schmidt_decomposition(
     Frag_sites1 = array([[i] for i in AO_in_frag])
 
     # Compute the environment part of the density matrix
+    # if Env_sites.size == 0:
+    #    return np.eye(Tot_sites), Frag_sites1.shape[0], 0
     Denv = Dhf[Env_sites, Env_sites.T]
 
     # Perform eigenvalue decomposition on the environment density matrix.
